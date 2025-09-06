@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Quiz Mecânica</title>
+<style>
+body { font-family: Arial, sans-serif; text-align:center; background:#f5f5f5; margin:0; padding:20px; }
+h1 { margin-bottom:20px; }
+.grid { display:grid; grid-template-columns:repeat(2,1fr); gap:15px; }
+.card { background:white; padding:30px; border-radius:15px; box-shadow:0 4px 6px rgba(0,0,0,0.1); font-size:18px; font-weight:bold; cursor:pointer; transition: transform 0.2s; }
+.card:hover { transform:scale(1.05); background:#e0f7fa; }
+#conteudo { margin-top:30px; padding:20px; background:white; border-radius:10px; box-shadow:0 4px 6px rgba(0,0,0,0.1); transition: background-color 0.3s; min-height:200px; }
+.alt-btn { display:block; margin:5px auto; padding:10px; width:80%; border-radius:8px; border:none; background:#2196f3; color:white; cursor:pointer; transition: background 0.3s, transform 0.2s; }
+.alt-btn:hover { background:#1976d2; transform:scale(1.05); }
+.delete-btn { margin:3px; padding:5px 10px; background:#f44336; color:white; border:none; border-radius:5px; cursor:pointer; }
+.delete-btn:hover { background:#d32f2f; }
+input[type="file"]{ margin:10px auto; display:block; }
+img{ max-width:200px; margin:10px auto; display:block; }
+@keyframes acerto { 0% { transform:scale(1); background-color:#e0ffe0; } 50% { transform:scale(1.2); background-color:#a0ffa0; } 100% { transform:scale(1); background-color:white; } }
+@keyframes erro { 0% { transform:scale(1); background-color:#ffe0e0; } 50% { transform:scale(1.2); background-color:#ff7070; } 100% { transform:scale(1); background-color:white; } }
+#conteudo.acertou { animation: acerto 0.8s; }
+#conteudo.errou { animation: erro 0.8s; }
+</style>
+</head>
+<body>
+<h1>Quiz Mecânica</h1>
+
+<div class="grid" id="gridCategorias">
+  <div class="card" onclick="abrirCategoria('rolamentos')">📦 Rolamentos</div>
+  <div class="card" onclick="abrirCategoria('engrenagens')">⚙️ Engrenagens</div>
+  <div class="card" onclick="abrirCategoria('lubrificacao')">🛢 Lubrificação</div>
+  <div class="card" onclick="abrirCategoria('manutencao')">🔧 Manutenção</div>
+  <div class="card" onclick="simulado()">🎯 Simulado</div>
+  <div class="card" onclick="gerenciarQuestoes()">🗂 Gerenciar Questões</div>
+  <div class="card" onclick="novaCategoria()">➕ Nova Categoria</div>
+</div>
+
+<div id="conteudo"></div>
+
+<script>
+let questoes = { rolamentos: [], engrenagens: [], lubrificacao: [], manutencao: [] };
+let quizArray = [], quizIndex = 0;
+
+// --- LocalStorage ---
+function salvarQuestoes(){ localStorage.setItem("quizQuestoes",JSON.stringify(questoes)); }
+function carregarQuestoes(){ let data=localStorage.getItem("quizQuestoes"); if(data){ questoes=JSON.parse(data); } }
+carregarQuestoes();
+
+// --- Categorias ---
+function abrirCategoria(cat){
+  document.getElementById("conteudo").innerHTML = `<h2>${cat.toUpperCase()}</h2>
+    <button class="alt-btn" onclick="adicionarQuestao('${cat}')">➕ Adicionar Questão</button>
+    <button class="alt-btn" onclick="iniciarQuiz('${cat}')">📝 Fazer Quiz</button>
+    <button class="alt-btn" onclick="deletarCategoria('${cat}')">🗑 Deletar Categoria</button>`;
+}
+
+function novaCategoria(){
+  let nome = prompt("Digite o nome da nova categoria:");
+  if(!nome) return;
+  if(questoes[nome]){ alert("Categoria já existe!"); return; }
+  questoes[nome]=[];
+  salvarQuestoes();
+  let grid=document.getElementById("gridCategorias");
+  let card=document.createElement("div");
+  card.className="card";
+  card.innerHTML=`${nome}`;
+  card.onclick=()=>abrirCategoria(nome);
+  grid.insertBefore(card,grid.children[4]);
+}
+
+// --- Adicionar questão ---
+function adicionarQuestao(cat){
+  let div=document.getElementById("conteudo");
+  div.innerHTML=`<h3>Escolha o tipo de questão</h3>
+    <button class="alt-btn" onclick="adicionarMultipla('${cat}')">Múltipla</button>
+    <button class="alt-btn" onclick="adicionarDissertativa('${cat}')">Dissertativa</button>
+    <button class="alt-btn" onclick="adicionarMultiplaFoto('${cat}')">Múltipla com Foto</button>
+    <button class="alt-btn" onclick="adicionarDissertativaFoto('${cat}')">Dissertativa com Foto</button>
+    <button class="alt-btn" onclick="abrirCategoria('${cat}')">Cancelar</button>`;
+}
+
+// --- Multipla ---
+function adicionarMultipla(cat){
+  let enunciado = prompt("Digite o enunciado:");
+  if(!enunciado) return;
+  let alternativas = [];
+  for(let i=1;i<=4;i++){ alternativas.push(prompt("Alternativa "+i+":")); }
+  let correta = prompt("Número da correta (1-4):");
+  questoes[cat].push({tipo:"multipla", enunciado, alternativas, correta});
+  salvarQuestoes(); alert("Questão múltipla adicionada!"); abrirCategoria(cat);
+}
+
+// --- Dissertativa ---
+function adicionarDissertativa(cat){
+  let enunciado = prompt("Digite o enunciado:");
+  if(!enunciado) return;
+  let resposta = prompt("Resposta esperada:");
+  questoes[cat].push({tipo:"dissertativa",enunciado,resposta});
+  salvarQuestoes(); alert("Questão dissertativa adicionada!"); abrirCategoria(cat);
+}
+
+// --- Questões com foto ---
+function adicionarMultiplaFoto(cat){
+  let div=document.getElementById("conteudo");
+  div.innerHTML=`<h3>Múltipla com Foto</h3>
+  <input type="file" id="fotoInput" accept="image/*"><br>
+  <input type="text" id="enunciadoFoto" placeholder="Digite o enunciado"><br><br>
+  <button class="alt-btn" onclick="salvarMultiplaFoto('${cat}')">Salvar</button>
+  <button class="alt-btn" onclick="abrirCategoria('${cat}')">Cancelar</button>`;
+}
+
+function salvarMultiplaFoto(cat){
+  let file = document.getElementById("fotoInput").files[0];
+  let enunciado = document.getElementById("enunciadoFoto").value;
+  if(!file || !enunciado){ alert("Preencha todos os campos!"); return; }
+  let reader = new FileReader();
+  reader.onload=function(ev){
+    let alternativas = [];
+    for(let i=1;i<=4;i++){ alternativas.push(prompt("Alternativa "+i+":")); }
+    let correta = prompt("Número da correta (1-4):");
+    questoes[cat].push({tipo:"multiplaFoto", enunciado, foto:ev.target.result, alternativas, correta});
+    salvarQuestoes(); alert("Múltipla com foto adicionada!"); abrirCategoria(cat);
+  }
+  reader.readAsDataURL(file);
+}
+
+function adicionarDissertativaFoto(cat){
+  let div=document.getElementById("conteudo");
+  div.innerHTML=`<h3>Dissertativa com Foto</h3>
+  <input type="file" id="fotoInputDis" accept="image/*"><br>
+  <input type="text" id="enunciadoDis" placeholder="Digite o enunciado"><br>
+  <input type="text" id="respostaDis" placeholder="Digite a resposta correta"><br><br>
+  <button class="alt-btn" onclick="salvarDissertativaFoto('${cat}')">Salvar</button>
+  <button class="alt-btn" onclick="abrirCategoria('${cat}')">Cancelar</button>`;
+}
+
+function salvarDissertativaFoto(cat){
+  let file = document.getElementById("fotoInputDis").files[0];
+  let enunciado = document.getElementById("enunciadoDis").value;
+  let resposta = document.getElementById("respostaDis").value;
+  if(!file || !enunciado || !resposta){ alert("Preencha todos os campos!"); return; }
+  let reader = new FileReader();
+  reader.onload=function(ev){
+    questoes[cat].push({tipo:"dissertativaFoto", enunciado, foto:ev.target.result, resposta});
+    salvarQuestoes(); alert("Dissertativa com foto adicionada!"); abrirCategoria(cat);
+  }
+  reader.readAsDataURL(file);
+}
+
+// --- Quiz ---
+function iniciarQuiz(cat){
+  if(questoes[cat].length===0){ alert("Nenhuma questão cadastrada!"); return; }
+  quizArray = [...questoes[cat]]; quizIndex=0;
+  mostrarQuestao(quizArray[quizIndex]);
+}
+
+function simulado(){
+  let todas=[...questoes.rolamentos,...questoes.engrenagens,...questoes.lubrificacao,...questoes.manutencao];
+  if(todas.length===0){ alert("Nenhuma questão cadastrada!"); return; }
+  let qtd=parseInt(prompt("Quantas questões deseja no simulado? (10,15,25,40)"));
+  if(![10,15,25,40].includes(qtd)){ alert("Escolha inválida!"); return; }
+  quizArray = todas.sort(()=>Math.random()-0.5).slice(0,Math.min(qtd,todas.length)); quizIndex=0;
+  mostrarQuestao(quizArray[quizIndex]);
+}
+
+function mostrarQuestao(q){
+  let div=document.getElementById("conteudo");
+  div.innerHTML=`<h3>${q.enunciado}</h3>`;
+  if(q.foto) div.innerHTML+=`<img src="${q.foto}" alt="Questão">`;
+
+  if(q.tipo==="multipla" || q.tipo==="multiplaFoto"){
+    q.alternativas.forEach((alt,i)=>{ div.innerHTML+=`<button class="alt-btn" onclick="verificarResposta('${q.correta}','${i+1}')">${i+1}) ${alt}</button>`; });
+  } else {
+    div.innerHTML+=`<input type="text" id="resposta" placeholder="Digite sua resposta">
+    <button class="alt-btn" onclick="verificarResposta('${q.resposta}',document.getElementById('resposta').value)">Enviar</button>`;
+  }
+}
+
+function verificarResposta(correta,resposta){
+  let div=document.getElementById("conteudo");
+  if(resposta.trim().toLowerCase()===correta.trim().toLowerCase()){
+    animacaoAcertou();
+    setTimeout(()=>{ quizIndex++; if(quizIndex<quizArray.length) mostrarQuestao(quizArray[quizIndex]);
+    else div.innerHTML="<h2>🎉 Parabéns! Você terminou o quiz!</h2>"; },800);
+  } else { animacaoErrou(); alert("❌ Errado! Tente novamente."); }
+}
+
+function animacaoAcertou(){ let div=document.getElementById("conteudo"); div.classList.add("acertou"); setTimeout(()=>{ div.classList.remove("acertou"); },800); }
+function animacaoErrou(){ let div=document.getElementById("conteudo"); div.classList.add("errou"); setTimeout(()=>{ div.classList.remove("errou"); },800); }
+
+// --- Gerenciar Questões ---
+function gerenciarQuestoes(){
+  let div=document.getElementById("conteudo"); div.innerHTML="<h2>Gerenciar Questões</h2>";
+  for(let cat in questoes){
+    div.innerHTML+=`<h3>${cat.toUpperCase()} <button class="delete-btn" onclick="deletarCategoria('${cat}')">🗑 Deletar Categoria</button></h3>`;
+    if(questoes[cat].length===0){ div.innerHTML+="<p>Nenhuma questão cadastrada.</p>"; continue; }
+    questoes[cat].forEach((q,i)=>{
+      div.innerHTML+=`<p>${i+1}) ${q.enunciado} <button class="delete-btn" onclick="deletarQuestao('${cat}',${i})">🗑 Deletar</button></p>`;
+    });
+  }
+}
+
+// --- Deletar questão ---
+function deletarQuestao(cat,index){
+  let senha=prompt("Digite a senha para deletar a questão:");
+  if(senha!=="6436"){ alert("Senha incorreta!"); return; }
+  if(confirm("Deseja realmente deletar esta questão?")){
+    questoes[cat].splice(index,1);
+    salvarQuestoes();
+    gerenciarQuestoes();
+  }
+}
+
+// --- Deletar categoria ---
+function deletarCategoria(cat){
+  let senha=prompt("Digite a senha para deletar a categoria:");
+  if(senha!=="6436"){ alert("Senha incorreta!"); return; }
+  if(confirm(`Deseja realmente deletar a categoria ${cat} e todas as questões?`)){
+    delete questoes[cat];
+    salvarQuestoes();
+    location.reload();
+  }
+}
+</script>
+</body>
+</html>
